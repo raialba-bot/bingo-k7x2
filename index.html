@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bingo de Mates 4º ESO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* Plan: aula proyectada. Fondo azul tinta, bola de bingo naranja, texto grande.
+   Disposición: pregunta grande a la izquierda, panel de resultados a la derecha. */
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --ink:#15233b; --muted:#5a6678; --line:#d5dbe6;
+  --accent:#e8590c; --accent-ink:#ffffff; --soft:#fff1e8;
+  --c-conteo:#0b7285; --c-arbol:#2b8a3e; --c-tabla:#7048e8; --c-ops:#c2255c;
+  --font-d:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --font-b:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1524; --surface:#18233a; --ink:#eef2fa; --muted:#9fb0c8; --line:#2b3a57;
+    --accent:#ff8a3d; --accent-ink:#1a0e02; --soft:#2a2233;
+    --c-conteo:#4cc9dd; --c-arbol:#69db7c; --c-tabla:#b197fc; --c-ops:#f783ac;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1524; --surface:#18233a; --ink:#eef2fa; --muted:#9fb0c8; --line:#2b3a57;
+  --accent:#ff8a3d; --accent-ink:#1a0e02; --soft:#2a2233;
+  --c-conteo:#4cc9dd; --c-arbol:#69db7c; --c-tabla:#b197fc; --c-ops:#f783ac;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:18px;line-height:1.4}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{min-height:100%;display:flex;flex-direction:column;gap:14px;padding:14px 18px 18px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-family:var(--font-d);font-size:clamp(22px,2.6vw,34px);margin:0;font-weight:700;letter-spacing:.2px}
+.prog{color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.spacer{flex:1}
+.btn{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 16px;font-weight:700;min-height:44px}
+.btn:hover{border-color:var(--accent)}
+.btn.danger.armed{background:#c92a2a;color:#fff;border-color:#c92a2a}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-family:var(--font-d);font-size:clamp(22px,2.4vw,32px);padding:14px 34px;border-radius:16px;min-height:64px}
+.btn.primary:disabled{opacity:.5;cursor:default}
+.btn.small{padding:6px 12px;min-height:38px;font-size:16px}
+.btn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.game{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.game{grid-template-columns:1fr}}
+.stage{background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:clamp(16px,2.2vw,30px);display:flex;flex-direction:column;gap:18px;min-height:min(70vh,640px)}
+.chip{align-self:flex-start;border:2px solid currentColor;border-radius:999px;padding:3px 14px;font-weight:800;font-size:16px;letter-spacing:.3px;text-transform:uppercase}
+.chip[data-cat="Conteo"]{color:var(--c-conteo)}
+.chip[data-cat="Diagrama de árbol"]{color:var(--c-arbol)}
+.chip[data-cat="Tabla de contingencia"]{color:var(--c-tabla)}
+.chip[data-cat="Operaciones"]{color:var(--c-ops)}
+.qtext{font-family:var(--font-d);font-weight:500;font-size:clamp(28px,4vw,58px);line-height:1.25;text-wrap:balance}
+.qtext.op{font-size:clamp(44px,7vw,100px);text-align:center;padding:10px 0}
+.qtext small{display:block;color:var(--muted);font-size:.45em;margin-top:10px;font-family:var(--font-b);font-weight:600}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1.05;margin:0 .12em}
+.frac>span:first-child{border-bottom:.06em solid currentColor;padding:0 .2em .05em}
+.frac>span:last-child{padding:.05em .2em 0}
+.tablewrap{overflow-x:auto}
+table.ct{border-collapse:collapse;font-size:clamp(22px,3vw,42px);font-variant-numeric:tabular-nums;margin:0 auto}
+table.ct th,table.ct td{border:2px solid var(--line);padding:.25em .8em;text-align:center}
+table.ct th{background:var(--bg);font-weight:800}
+table.ct tr:last-child td,table.ct td:last-child{font-weight:800}
+table.ct td.hole{background:var(--accent);color:var(--accent-ink);font-weight:800}
+.answerrow{display:flex;align-items:center;gap:18px;margin-top:auto;flex-wrap:wrap}
+.ball{width:clamp(96px,12vw,150px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-family:var(--font-d);font-weight:700;font-size:clamp(40px,6vw,76px);background:radial-gradient(circle at 32% 28%,#fff 0 14%,transparent 15%),var(--accent);color:var(--accent-ink);box-shadow:inset 0 -8px 0 rgba(0,0,0,.14);font-variant-numeric:tabular-nums}
+.ball.hidden{background:var(--bg);color:var(--muted);box-shadow:none;border:3px dashed var(--line)}
+.anslabel{font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-size:16px}
+.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.timersel{display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--muted);font-weight:700}
+.timerbar{height:12px;border-radius:99px;background:var(--bg);overflow:hidden;visibility:hidden}
+.timerbar.show{visibility:visible}
+.timerbar i{display:block;height:100%;width:100%;background:var(--c-arbol);transform-origin:left;transition:background .3s}
+.timerbar.low i{background:#e03131}
+.timetxt{font-family:var(--font-d);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;min-width:90px}
+
+.side{background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:12px;min-height:300px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.panelhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-weight:700}
+.nums{display:flex;flex-wrap:wrap;gap:8px}
+.num{min-width:52px;height:52px;padding:0 8px;border-radius:26px;display:grid;place-items:center;background:var(--bg);border:2px solid var(--line);font-family:var(--font-d);font-weight:600;font-size:24px;font-variant-numeric:tabular-nums}
+.num.new{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.num.miss{border-style:dashed;color:var(--muted)}
+.num.ok{background:var(--c-arbol);border-color:var(--c-arbol);color:#fff}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto}
+.hist li{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:8px}
+.hist .k{color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
+.hist .a{font-family:var(--font-d);font-weight:700;font-size:26px;color:var(--accent)}
+.hist .t{font-size:16px}
+.hist .c{display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.empty{color:var(--muted)}
+.chk{display:flex;flex-direction:column;gap:10px}
+.chk label{font-weight:800}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text],input[type=number],select{font:inherit;color:inherit;background:var(--bg);border:2px solid var(--line);border-radius:10px;padding:8px 10px;min-height:44px}
+input[type=number]{width:96px}
+input.wide{flex:1;min-width:150px}
+.verdict{font-family:var(--font-d);font-size:26px;font-weight:700}
+.verdict.win{color:var(--c-arbol)}
+.verdict.line{color:var(--accent)}
+
+#cards-view{display:none;flex-direction:column;gap:16px}
+.cardsbar{background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.cardsbar label{font-weight:700;display:flex;gap:8px;align-items:center}
+.note{color:var(--muted);font-size:16px;max-width:70ch}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.bcard{background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:10px;break-inside:avoid}
+.bcard h3{margin:0 0 8px;font-family:var(--font-d);font-size:18px;font-weight:600;display:flex;justify-content:space-between}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.bgrid span{aspect-ratio:1.3;display:grid;place-items:center;border:2px solid var(--line);border-radius:8px;font-family:var(--font-d);font-weight:600;font-size:28px;font-variant-numeric:tabular-nums}
+.bgrid span.hit{background:var(--c-arbol);border-color:var(--c-arbol);color:#fff}
+details.free{background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:12px 16px}
+details.free summary{font-weight:800;cursor:pointer;min-height:32px}
+@media print{
+  body{background:#fff;color:#000}
+  header,#game,.cardsbar,details.free,.noprint{display:none !important}
+  #cards-view{display:flex !important}
+  .cardgrid{grid-template-columns:repeat(2,1fr)}
+  .bcard{border-color:#000}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Bingo de Mates · 4º ESO</h1>
+    <span class="prog" id="prog"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="btn-view" type="button">Cartones</button>
+    <button class="btn danger" id="btn-new" type="button">Nueva partida</button>
+  </header>
+
+  <main id="game" class="game">
+    <section class="stage" aria-live="polite">
+      <span class="chip" id="cat" hidden></span>
+      <div class="qtext" id="qtext"></div>
+      <div class="tablewrap" id="qtable"></div>
+      <div class="timerbar" id="tbarwrap"><i id="tbar"></i></div>
+      <div class="answerrow">
+        <div class="ball hidden" id="ball">?</div>
+        <div>
+          <div class="anslabel" id="anslabel">Respuesta</div>
+          <div class="timetxt" id="timetxt"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="go" type="button">Empezar</button>
+        <button class="btn" id="rev" type="button" hidden>Hacer revisión</button>
+        <button class="btn" id="exitrev" type="button" hidden>Salir de la revisión</button>
+        <div class="timersel" role="group" aria-label="Cuenta atrás">
+          <span>Tiempo:</span>
+          <button class="btn small" type="button" data-t="0">Sin</button>
+          <button class="btn small" type="button" data-t="10">10 s</button>
+          <button class="btn small" type="button" data-t="20">20 s</button>
+          <button class="btn small" type="button" data-t="30">30 s</button>
+          <button class="btn small" type="button" data-t="60">60 s</button>
+                  </div>
+        <div class="timersel" role="group" aria-label="Cuándo se ven las respuestas">
+          <span>Respuestas:</span>
+          <button class="btn small" type="button" data-mode="each">Una a una</button>
+          <button class="btn small" type="button" data-mode="batch">En revisión</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <button class="btn primary" id="showall" type="button" style="font-size:20px;min-height:52px;padding:8px 18px">Mostrar números salidos</button>
+      <div class="tabs" role="tablist">
+        <button class="btn small" type="button" data-tab="nums">Números salidos</button>
+        <button class="btn small" type="button" data-tab="hist">Historial</button>
+        <button class="btn small" type="button" data-tab="chk">Comprobar</button>
+      </div>
+      <div id="panel"></div>
+    </aside>
+  </main>
+
+  <section id="cards-view">
+    <div class="cardsbar">
+      <button class="btn" id="btn-back" type="button">Volver al juego</button>
+      <label>Cartones <input type="number" id="c-count" min="1" max="60" value="30"></label>
+      <label>Números por cartón
+        <select id="c-size"><option value="6">6 (2 filas)</option><option value="9">9 (3 filas)</option></select>
+      </label>
+      <button class="btn" id="c-new" type="button">Generar otros</button>
+      <button class="btn primary" id="c-print" type="button" style="font-size:18px;min-height:44px;padding:8px 18px">Imprimir</button>
+    </div>
+    <p class="note noprint">Cada cartón lleva un número. Al comprobar un cartón en el juego basta con escribir ese número. Si el navegador no deja imprimir desde esta página, abre «Cartón libre» y proyecta la lista: cada alumno copia sus números en un cuadrado que dibuje en el cuaderno.</p>
+    <details class="free">
+      <summary>Cartón libre: números posibles</summary>
+      <p class="note">Cada alumno elige y apunta 9 de estos números. Todas las respuestas del bingo están aquí.</p>
+      <div class="nums" id="allnums"></div>
+    </details>
+    <div class="cardgrid" id="cardgrid"></div>
+  </section>
+</div>
+
+<script>
+/* ============ DATOS ============ */
+const Q=[];
+function add(cat,text,a,extra){Q.push(Object.assign({id:Q.length,cat:cat,text:text,a:a},extra||{}));}
+function tbl(cols,rows,m,hr,hc){
+  const R=m.length,C=m[0].length,full=[];
+  for(let r=0;r<=R;r++){full.push([]);for(let c=0;c<=C;c++){
+    let v;
+    if(r<R&&c<C)v=m[r][c];
+    else if(r<R)v=m[r].reduce((s,x)=>s+x,0);
+    else if(c<C)v=m.reduce((s,row)=>s+row[c],0);
+    else v=m.reduce((s,row)=>s+row.reduce((u,x)=>u+x,0),0);
+    full[r].push(v);
+  }}
+  add('Tabla de contingencia','Calcula el número que falta (?).',full[hr][hc],{
+    short:'Tabla: '+cols.join(' / ')+' y '+rows.join(' / '),
+    table:{head:['',...cols,'Total'],rows:[...rows,'Total'],full:full,hole:[hr,hc]}
+  });
+}
+/* Conteo */
+add('Conteo','Tienes 3 camisetas y 4 pantalones distintos. ¿Cuántos conjuntos diferentes puedes formar?',12);
+add('Conteo','Un menú tiene 5 primeros, 4 segundos y 2 postres. ¿Cuántos menús distintos hay (un plato de cada)?',40);
+add('Conteo','¿De cuántas formas se pueden sentar 5 amigos en 5 sillas colocadas en fila?',120);
+add('Conteo','Con las cifras 1, 2, 3, 4 y 5, ¿cuántos números de 2 cifras se pueden formar si las cifras pueden repetirse?',25);
+add('Conteo','Con las cifras 1, 2, 3, 4 y 5, ¿cuántos números de 2 cifras distintas se pueden formar?',20);
+add('Conteo','En una carrera participan 5 corredores. ¿De cuántas formas pueden repartirse oro, plata y bronce?',60);
+add('Conteo','6 amigos se saludan chocando la mano, cada pareja una sola vez. ¿Cuántos saludos hay?',15);
+add('Conteo','De 5 alumnos hay que elegir a 2 para ir a una reunión. ¿Cuántas parejas distintas se pueden formar?',10);
+add('Conteo','Lanzas una moneda 4 veces. ¿Cuántos resultados distintos hay?',16);
+add('Conteo','Lanzas dos dados de distinto color. ¿Cuántos resultados distintos hay?',36);
+add('Conteo','Hay 3 caminos de A a B y 6 caminos de B a C. ¿Cuántas rutas hay de A a C pasando por B?',18);
+add('Conteo','7 equipos juegan todos contra todos una sola vez. ¿Cuántos partidos se juegan?',21);
+add('Conteo','Lanzas una moneda 3 veces. ¿Cuántos resultados distintos hay?',8);
+add('Conteo','¿Cuántos números de 3 cifras distintas se pueden formar con las cifras 1, 2, 3 y 4?',24);
+add('Conteo','¿Cuántas palabras de 3 letras (con o sin sentido) se pueden formar con A, B y C usando cada letra una sola vez?',6);
+add('Conteo','Una heladería tiene 8 sabores. ¿De cuántas formas se puede elegir un helado de 2 bolas de sabores distintos, sin importar el orden?',28);
+/* Diagrama de árbol */
+add('Diagrama de árbol','Lanzas 3 monedas y un dado. ¿Cuántas ramas finales tiene su diagrama de árbol?',48);
+add('Diagrama de árbol','Un diagrama de árbol tiene 3 ramas iniciales. De cada una salen 5 ramas y de cada una de estas, 3 más. ¿Cuántas ramas finales hay?',45);
+add('Diagrama de árbol','Una bolsa tiene 7 bolas numeradas. Sacas una, la devuelves y sacas otra. ¿Cuántas ramas finales tiene el árbol?',49);
+add('Diagrama de árbol','Una bolsa tiene 9 bolas numeradas. Sacas una, no la devuelves y sacas otra. ¿Cuántas ramas finales tiene el árbol?',72);
+add('Diagrama de árbol','Un experimento se repite 300 veces. Uno de sus caminos tiene probabilidad [1/5] · [1/2]. ¿Cuántas veces se espera que ocurra ese camino?',30);
+add('Diagrama de árbol','En una caja hay 10 bolas: 7 rojas y 3 verdes. Se saca una, se devuelve, y esto se repite 100 veces. ¿Cuántas veces se espera sacar roja?',70);
+add('Diagrama de árbol','Lanzas una moneda dos veces. ¿Cuántas ramas finales del árbol tienen exactamente una cara?',2);
+add('Diagrama de árbol','Lanzas una moneda 5 veces. ¿Cuántas ramas finales tiene su diagrama de árbol?',32);
+add('Diagrama de árbol','Lanzas dos dados. En el diagrama de árbol, ¿cuántas ramas finales dan suma 8?',5);
+add('Diagrama de árbol','Un test tiene 6 preguntas de verdadero o falso. ¿De cuántas formas distintas se puede contestar?',64);
+add('Diagrama de árbol','Lanzas una moneda 3 veces. ¿Cuántas ramas finales del árbol tienen al menos una cruz?',7);
+/* Tablas de contingencia */
+tbl(['Chicos','Chicas'],['Con mascota','Sin mascota'],[[9,13],[6,2]],0,1);
+tbl(['Hombres','Mujeres'],['Con gafas','Sin gafas'],[[18,27],[32,23]],1,1);
+tbl(['Chicos','Chicas'],['Aprobado','Suspenso'],[[14,17],[5,10]],2,2);
+tbl(['4ºA','4ºB'],['Hace deporte','No hace deporte'],[[11,8],[4,7]],0,2);
+tbl(['4ºA','4ºB'],['Autobús','Andando','Bici'],[[14,11],[9,10],[4,6]],3,1);
+tbl(['Chicos','Chicas'],['Pizza','Hamburguesa'],[[16,14],[9,11]],2,2);
+tbl(['Chicos','Chicas'],['Tiene hermanos','Hijo único'],[[22,17],[8,13]],0,2);
+tbl(['Chicos','Chicas'],['Lee a diario','No lee a diario'],[[26,29],[14,31]],1,1);
+tbl(['Chicos','Chicas'],['Música','Cine'],[[34,38],[19,27]],0,0);
+tbl(['4ºA','4ºB'],['Va de excursión','No va'],[[11,18],[7,16]],0,2);
+tbl(['Chicos','Chicas'],['Videojuegos','Series'],[[15,23],[9,17]],0,2);
+tbl(['Mañana','Tarde'],['Prefiere playa','Prefiere montaña'],[[20,21],[14,19]],0,2);
+tbl(['Zurdos','Diestros'],['Chicos','Chicas'],[[6,8],[3,5]],0,2);
+tbl(['Grupo A','Grupo B'],['Con calculadora','Sin calculadora'],[[4,9],[6,7]],0,1);
+tbl(['Grupo A','Grupo B'],['Bocadillo','Ensalada'],[[10,12],[8,6]],0,2);
+/* Operaciones */
+add('Operaciones','7 · 8',56,{op:1});
+add('Operaciones','[102/6]',17,{op:1});
+add('Operaciones','15 + 27',42,{op:1});
+add('Operaciones','2⁵ + 1',33,{op:1});
+add('Operaciones','10 % de 530',53,{op:1});
+add('Operaciones','50 % de 86',43,{op:1});
+add('Operaciones','3 · (6 + 5) − 7',26,{op:1});
+add('Operaciones','−6 + 41',35,{op:1});
+add('Operaciones','100 − 6 · 7',58,{op:1});
+add('Operaciones','[3/4] de 84',63,{op:1});
+add('Operaciones','25 % de 220',55,{op:1});
+add('Operaciones','9 · 9',81,{op:1});
+add('Operaciones','100 − 39',61,{op:1});
+add('Operaciones','√121',11,{op:1});
+add('Operaciones','[1/4] de 148',37,{op:1});
+add('Operaciones','12 · 5 − 8',52,{op:1});
+add('Operaciones','(−4) · (−11)',44,{op:1});
+add('Operaciones','[540/6]',90,{op:1});
+add('Operaciones','8 · 9 + 5',77,{op:1});
+/* Enteros */
+add('Operaciones','(−5) · (−13)',65,{op:1});
+add('Operaciones','−18 + 75',57,{op:1});
+add('Operaciones','40 − (−27)',67,{op:1});
+add('Operaciones','[−204/−3]',68,{op:1});
+add('Operaciones','8 · (−3) + 100',76,{op:1});
+add('Operaciones','(−12) − (−85)',73,{op:1});
+add('Operaciones','(−4) · (−6) − (−60)',84,{op:1});
+add('Operaciones','(−5)² + 50',75,{op:1});
+add('Operaciones','−100 + 4 · 45',80,{op:1});
+/* Ampliación hasta 100 */
+add('Conteo','En una fiesta hay 12 personas y todas se despiden con un abrazo, cada pareja una sola vez. ¿Cuántos abrazos hay?',66);
+add('Conteo','Un coche se ofrece en 3 modelos, 5 colores y 7 tipos de llantas. ¿Cuántas combinaciones distintas hay?',105);
+add('Conteo','Un club tiene 11 socios y hay que elegir un presidente y un secretario (dos cargos distintos). ¿De cuántas formas se puede hacer?',110);
+add('Conteo','Con las cifras 0, 1 y 2 (pueden repetirse), ¿cuántos números de 4 cifras se pueden formar? Un número no puede empezar por 0.',54);
+add('Conteo','Entre 1 y 500, ambos incluidos, ¿cuántos números son múltiplos de 5?',100);
+add('Conteo','En una liga de 12 equipos todos juegan contra todos, ida y vuelta. ¿Cuántos partidos se juegan?',132);
+add('Diagrama de árbol','Lanzas una moneda 7 veces. ¿Cuántas ramas finales tiene el diagrama de árbol?',128);
+add('Diagrama de árbol','Lanzas un dado 114 veces. La probabilidad de no sacar 6 en cada lanzamiento es [5/6]. ¿Cuántas veces se espera no sacar 6?',95);
+add('Diagrama de árbol','Un experimento se repite 354 veces. Uno de sus caminos tiene probabilidad [1/3] · [1/2]. ¿Cuántas veces se espera que ocurra ese camino?',59);
+add('Diagrama de árbol','Lanzas un dado y una moneda. ¿Cuántas ramas finales del árbol tienen número par y cara?',3);
+add('Diagrama de árbol','Lanzas una moneda 5 veces. ¿Cuántas ramas finales no tienen ninguna cruz?',1);
+add('Diagrama de árbol','Lanzas dos dados. ¿Cuántas ramas finales dan suma 9?',4);
+tbl(['Chicos','Chicas'],['Con carné de biblioteca','Sin carné'],[[23,51],[14,32]],0,1);
+tbl(['Mañana','Tarde'],['Viene a pie','Viene en transporte'],[[30,32],[18,20]],0,2);
+tbl(['4ºA','4ºB'],['Con calculadora','Sin calculadora'],[[17,22],[40,29]],1,2);
+tbl(['Chicos','Chicas'],['Zumo','Batido'],[[31,19],[40,28]],2,0);
+tbl(['Grupo A','Grupo B'],['Aprobados','Suspensos'],[[35,12],[39,30]],2,0);
+tbl(['Hombres','Mujeres'],['Con coche','Sin coche'],[[22,18],[19,20]],2,2);
+tbl(['4ºA','4ºB','4ºC'],['Autobús','Andando','Coche'],[[13,14,11],[9,10,13],[6,4,5]],3,3);
+add('Operaciones','[2/3] de 129',86,{op:1});
+add('Operaciones','30 % de 310',93,{op:1});
+add('Operaciones','(−9) · (−11) − 1',98,{op:1});
+add('Operaciones','√169 · 7',91,{op:1});
+add('Operaciones','3⁴ + 3² − 1',89,{op:1});
+add('Operaciones','[522/6]',87,{op:1});
+add('Operaciones','3 · 2² + 10 · 7',82,{op:1});
+add('Operaciones','(−2)⁴ · 7 − 1',111,{op:1});
+add('Operaciones','[−72/6] · (−9)',108,{op:1});
+add('Operaciones','5 % de 1 980',99,{op:1});
+add('Operaciones','[3/5] de 195',117,{op:1});
+</script>
+
+<script>
+/* ============ APLICACIÓN ============ */
+const KEY='bingo4eso_v1';
+const $=id=>document.getElementById(id);
+const ANSWERS=Array.from(new Set(Q.map(q=>q.a))).sort((a,b)=>a-b);
+let S=null, tab='nums', timerId=null, t0=0, armed=false, checkOut='';
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);if(o&&Array.isArray(o.order)&&o.order.length===Q.length&&o.cards)return o;}}catch(e){}return null;}
+function newGame(){
+  const prev=S;
+  S={order:shuffle(Q.map(q=>q.id)),n:0,rev:0,mark:0,revShown:false,mode:prev?prev.mode:'batch',phase:'ready',timer:prev?prev.timer:60,sort:'order',
+     cards:prev?prev.cards:{seed:Math.floor(Math.random()*1e6),count:30,size:9}};
+  stopTimer();save();
+}
+function fmt(t){return t.replace(/\[(−?\d+)\/(−?\d+)\]/g,'<span class="frac"><span>$1</span><span>$2</span></span>');}
+function drawn(){return S.order.slice(0,S.rev).map(id=>Q[id].a);}
+function pending(){return S.n-S.rev+(S.phase==='asking'?1:0);}
+function pendNote(){const k=pending();return k>0?'<p class="empty">'+k+(k===1?' pregunta sin revisar: su respuesta sigue oculta.':' preguntas sin revisar: sus respuestas siguen ocultas.')+'</p>':'';}
+
+/* ---- temporizador ---- */
+function stopTimer(){if(timerId){clearInterval(timerId);timerId=null;}}
+function startTimer(){
+  stopTimer();
+  if(!S.timer||S.phase!=='asking')return;
+  t0=Date.now();tick();
+  timerId=setInterval(tick,200);
+}
+function tick(){
+  const total=S.timer*1000,left=Math.max(0,total-(Date.now()-t0));
+  const bar=$('tbar'),wrap=$('tbarwrap');
+  bar.style.transform='scaleX('+(left/total)+')';
+  wrap.classList.toggle('low',left<=Math.min(10000,total/3));
+  const s=Math.ceil(left/1000);
+  $('timetxt').textContent=left>0?Math.floor(s/60)+':'+String(s%60).padStart(2,'0'):'¡Tiempo!';
+  if(left<=0)stopTimer();
+}
+
+/* ---- escena ---- */
+function renderStage(){
+  const ph=S.phase,total=Q.length;
+  let q=null,show=false;
+  if(ph==='review'){q=Q[S.order[S.rev]];show=S.revShown;}
+  else if(ph==='asking'){q=Q[S.order[S.n]];}
+  else if(S.n>0){q=Q[S.order[S.n-1]];show=S.rev>=S.n;}
+  const cat=$('cat'),qt=$('qtext'),tb=$('qtable'),ball=$('ball'),pend=pending();
+  $('prog').textContent='Preguntas: '+(S.n+(ph==='asking'?1:0))+' de '+total+(pend>0?' · sin revisar: '+pend:'');
+  if(!q){
+    cat.hidden=true;tb.innerHTML='';
+    qt.className='qtext';
+    qt.innerHTML='¿Listos? Cada uno elige sus números y se empieza.<small>Pulsa «Empezar» (o la barra espaciadora) para sacar la primera pregunta.</small>';
+    ball.className='ball hidden';ball.textContent='?';
+  }else{
+    cat.hidden=false;cat.textContent=q.cat;cat.dataset.cat=q.cat;
+    qt.className='qtext'+(q.op?' op':'');
+    qt.innerHTML=fmt(q.text)+(q.op?'<small>Calcula</small>':'');
+    tb.innerHTML=q.table?tableHTML(q.table,show):'';
+    if(show){ball.className='ball';ball.textContent=q.a;}
+    else{ball.className='ball hidden';ball.textContent='?';}
+  }
+  $('anslabel').textContent=ph==='review'?'Revisión: '+(S.rev+1)+' de '+S.n:(q?(show?'Respuesta':'Respuesta oculta'):'');
+  const go=$('go');
+  go.disabled=false;
+  if(ph==='review')go.textContent=!S.revShown?'Ver solución':(S.rev+1<S.n?'Siguiente de la revisión':'Terminar revisión');
+  else if(ph==='asking'){
+    if(S.mode==='each')go.textContent='Ver solución';
+    else go.textContent=(S.n+1<total)?'Siguiente pregunta':'Hacer revisión';
+  }
+  else if(S.n===0)go.textContent='Empezar';
+  else if(S.n<total)go.textContent='Sacar pregunta';
+  else if(pend>0)go.textContent='Hacer revisión';
+  else{go.textContent='Fin del bingo';go.disabled=true;}
+  $('rev').hidden=!(pend>0&&ph!=='review');
+  $('exitrev').hidden=ph!=='review';
+  $('rev').textContent='Hacer revisión ('+pend+')';
+  const showBar=ph==='asking'&&S.timer>0;
+  $('tbarwrap').classList.toggle('show',showBar);
+  if(!showBar){$('timetxt').textContent='';}
+  document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',+b.dataset.t===S.timer));
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===S.mode));
+}
+function tableHTML(t,reveal){
+  let h='<table class="ct"><tr>'+t.head.map(x=>'<th>'+x+'</th>').join('')+'</tr>';
+  t.rows.forEach((lab,r)=>{
+    h+='<tr><th>'+lab+'</th>'+t.full[r].map((v,c)=>{
+      const hole=(r===t.hole[0]&&c===t.hole[1]);
+      return '<td'+(hole?' class="hole"':'')+'>'+(hole&&!reveal?'?':v)+'</td>';
+    }).join('')+'</tr>';
+  });
+  return h+'</table>';
+}
+
+/* ---- panel lateral ---- */
+function showAll(){
+  if(S.rev>=S.n)return;
+  S.mark=S.rev;S.rev=S.n;
+  if(S.phase==='review'){S.phase='ready';S.revShown=false;}
+  tab='nums';save();render();
+}
+function renderSide(){
+  const sa=$('showall'),k=S.n-S.rev;
+  sa.disabled=k<=0;
+  sa.textContent=k>0?'Mostrar números salidos ('+k+(k===1?' nuevo)':' nuevos)'):'Mostrar números salidos';
+  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  const p=$('panel'),d=drawn();
+  if(tab==='nums'){
+    if(!d.length){p.innerHTML='<p class="empty">Aquí irán apareciendo las respuestas cuando hagas la revisión.</p>'+pendNote();return;}
+    const list=S.sort==='sorted'?d.slice().sort((a,b)=>a-b):d;
+    const fresh=new Set(S.order.slice(S.mark||0,S.rev).map(id=>Q[id].a));
+    p.innerHTML='<div class="panelhead"><span>'+d.length+' números</span><span class="row">'+
+      '<button class="btn small'+(S.sort==='order'?' on':'')+'" data-sort="order" type="button">Por salida</button>'+
+      '<button class="btn small'+(S.sort==='sorted'?' on':'')+'" data-sort="sorted" type="button">Ordenados</button></span></div>'+
+      '<div class="nums">'+list.map(v=>'<span class="num'+(fresh.has(v)?' new':'')+'">'+v+'</span>').join('')+'</div>'+pendNote();
+  }else if(tab==='hist'){
+    if(!d.length){p.innerHTML='<p class="empty">Todavía no hay preguntas revisadas.</p>'+pendNote();return;}
+    const items=S.order.slice(0,S.rev).map((id,i)=>{const q=Q[id];
+      return '<li><span class="k">'+(i+1)+'</span><span class="t"><span class="c">'+q.cat+'</span>'+fmt(q.table?q.short:q.text)+'</span><span class="a">'+q.a+'</span></li>';}).reverse();
+    p.innerHTML='<ul class="hist">'+items.join('')+'</ul>'+pendNote();
+  }else{
+    p.innerHTML='<div class="chk">'+
+      '<div><label for="k-num">Cartón número</label><div class="row"><input type="number" id="k-num" min="1" max="'+S.cards.count+'"><button class="btn small" id="k-go" type="button">Comprobar</button></div></div>'+
+      '<div><label for="k-free">Números de un cartón libre</label><div class="row"><input type="text" id="k-free" class="wide" placeholder="12 24 36 …" inputmode="numeric"><button class="btn small" id="k-go2" type="button">Comprobar</button></div></div>'+
+      '<div id="k-out">'+checkOut+'</div></div>';
+  }
+}
+
+/* ---- cartones ---- */
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function cardFor(i){
+  const r=rng(S.cards.seed*1000+i*7919+13),a=ANSWERS.slice();
+  for(let k=a.length-1;k>0;k--){const j=Math.floor(r()*(k+1));[a[k],a[j]]=[a[j],a[k]];}
+  return a.slice(0,S.cards.size).sort((x,y)=>x-y);
+}
+function cardHTML(i,nums,hits){
+  return '<div class="bcard"><h3><span>Cartón nº '+(i+1)+'</span><span>Mates 4º</span></h3><div class="bgrid">'+
+    nums.map(v=>'<span'+(hits&&hits.has(v)?' class="hit"':'')+'>'+v+'</span>').join('')+'</div></div>';
+}
+function renderCards(){
+  $('c-count').value=S.cards.count;$('c-size').value=String(S.cards.size);
+  let h='';for(let i=0;i<S.cards.count;i++)h+=cardHTML(i,cardFor(i));
+  $('cardgrid').innerHTML=h;
+  $('allnums').innerHTML=ANSWERS.map(v=>'<span class="num">'+v+'</span>').join('');
+}
+function checkCard(){
+  const n=parseInt($('k-num').value,10);
+  if(!(n>=1&&n<=S.cards.count)){checkOut='<p class="empty">Escribe un número de cartón entre 1 y '+S.cards.count+'.</p>';return renderSide();}
+  const nums=cardFor(n-1),set=new Set(drawn()),hits=new Set(nums.filter(v=>set.has(v)));
+  const per=3,rows=[];for(let i=0;i<nums.length;i+=per)rows.push(nums.slice(i,i+per));
+  const full=hits.size===nums.length,line=rows.some(r=>r.every(v=>set.has(v)));
+  const v=full?'<div class="verdict win">¡BINGO!</div>':line?'<div class="verdict line">¡LÍNEA!</div>':'<div class="verdict">Faltan '+(nums.length-hits.size)+' números</div>';
+  checkOut=v+cardHTML(n-1,nums,hits);renderSide();
+  const el=$('k-num');if(el)el.value=n;
+}
+function checkFree(){
+  const m=($('k-free').value.match(/\d+/g)||[]).map(Number);
+  if(!m.length){checkOut='<p class="empty">Escribe los números separados por espacios.</p>';return renderSide();}
+  const set=new Set(drawn()),miss=m.filter(v=>!set.has(v));
+  const v=miss.length===0?'<div class="verdict win">¡Todos han salido!</div>':'<div class="verdict">Faltan '+miss.length+' por salir</div>';
+  checkOut=v+'<div class="nums">'+m.map(x=>'<span class="num '+(set.has(x)?'ok':'miss')+'">'+x+'</span>').join('')+'</div>';
+  renderSide();
+  const el=$('k-free');if(el)el.value=m.join(' ');
+}
+
+/* ---- acciones ---- */
+function startReview(){
+  stopTimer();
+  if(S.phase==='asking')S.n++;
+  if(S.rev>=S.n)return;
+  S.phase='review';S.revShown=false;save();render();
+}
+function go(){
+  const ph=S.phase;
+  if(ph==='review'){
+    if(!S.revShown)S.revShown=true;
+    else{S.mark=S.rev;S.rev++;S.revShown=false;if(S.rev>=S.n)S.phase='ready';}
+    save();render();return;
+  }
+  if(ph==='ready'){
+    if(S.n>=Q.length){if(pending()>0)startReview();return;}
+    S.phase='asking';save();render();startTimer();return;
+  }
+  if(S.mode==='each'){
+    stopTimer();S.n++;if(S.rev===S.n-1){S.mark=S.rev;S.rev=S.n;}S.phase='ready';save();render();return;
+  }
+  if(S.n+1>=Q.length){startReview();return;}
+  S.n++;save();render();startTimer();
+}
+function setView(v){
+  $('game').style.display=v==='cards'?'none':'grid';
+  $('cards-view').style.display=v==='cards'?'flex':'none';
+  $('btn-view').hidden=v==='cards';
+  if(v==='cards')renderCards();
+  window.scrollTo(0,0);
+}
+function render(){renderStage();renderSide();}
+
+/* ---- eventos ---- */
+$('go').addEventListener('click',go);
+$('rev').addEventListener('click',startReview);
+$('showall').addEventListener('click',showAll);
+$('exitrev').addEventListener('click',()=>{S.phase='ready';S.revShown=false;save();render();});
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{S.mode=b.dataset.mode;save();renderStage();}));
+$('btn-view').addEventListener('click',()=>setView('cards'));
+$('btn-back').addEventListener('click',()=>{setView('game');render();});
+$('btn-new').addEventListener('click',function(){
+  if(!armed){armed=true;this.classList.add('armed');this.textContent='¿Seguro? Pulsa otra vez';
+    setTimeout(()=>{armed=false;this.classList.remove('armed');this.textContent='Nueva partida';},3500);return;}
+  armed=false;this.classList.remove('armed');this.textContent='Nueva partida';
+  checkOut='';newGame();render();
+});
+document.querySelectorAll('[data-t]').forEach(b=>b.addEventListener('click',()=>{
+  S.timer=+b.dataset.t;save();renderStage();if(S.phase==='asking')startTimer();
+}));
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;renderSide();}));
+$('panel').addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.sort){S.sort=t.dataset.sort;save();renderSide();}
+  else if(t.id==='k-go')checkCard();
+  else if(t.id==='k-go2')checkFree();
+});
+$('panel').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  if(e.target.id==='k-num')checkCard();
+  else if(e.target.id==='k-free')checkFree();
+});
+$('c-count').addEventListener('change',function(){
+  S.cards.count=Math.max(1,Math.min(60,parseInt(this.value,10)||30));save();renderCards();
+});
+$('c-size').addEventListener('change',function(){S.cards.size=+this.value;save();renderCards();});
+$('c-new').addEventListener('click',()=>{S.cards.seed=Math.floor(Math.random()*1e6);save();renderCards();});
+$('c-print').addEventListener('click',()=>{try{window.print();}catch(e){}});
+document.addEventListener('keydown',e=>{
+  if((e.key===' '||e.key==='Enter')&&$('game').style.display!=='none'){
+    const tag=(e.target.tagName||'').toLowerCase();
+    if(tag==='input'||tag==='button'||tag==='select'||tag==='summary')return;
+    e.preventDefault();go();
+  }
+});
+
+/* ---- arranque ---- */
+S=load();
+if(!S)newGame();
+if(S.rev===undefined){S.rev=S.n;S.mode='batch';S.revShown=false;}
+if(S.mark===undefined)S.mark=Math.max(0,S.rev-1);
+if(S.phase==='asking')S.phase='ready'; /* al recargar, la pregunta en curso se vuelve a sacar */
+render();
+</script>
+</body>
+</html>
